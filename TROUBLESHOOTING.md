@@ -68,10 +68,10 @@ This is the Windows failure reproducing on Linux. Before giving up:
 
 ## Upscale prints "Terminated" / "Killed" mid-run (system RAM OOM)
 
-This is **system RAM**, not VRAM (a VRAM OOM raises a Python `torch.OutOfMemoryError` traceback instead). The SeedVR2 CLI loads the **whole video into RAM** when `--chunk_size 0` (its default), which OOM-kills on a 16 GB-RAM box. `4-upscale.sh` now defaults to `CHUNK=100` (streaming, memory-bounded) to prevent this.
+This is **system RAM**, not VRAM (a VRAM OOM raises a Python `torch.OutOfMemoryError` traceback instead). The SeedVR2 CLI loads the **whole video into RAM as one float32 tensor** when `--chunk_size 0` (its default), which OOM-kills on a 16 GB-RAM box. Frames are float32 at *source* resolution, so a 4K clip is ~100 MB/frame. `4-upscale.sh` now defaults to `CHUNK=25` (streaming, memory-bounded, ~2.5 GB) to prevent this.
 
-- Still killed? Lower the chunk: `CHUNK=50 ./4-upscale.sh clip.mp4` (or 25).
-- Quick end-to-end test on a few seconds first: `LOADCAP=150 ./4-upscale.sh clip.mp4`.
+- Still killed? Lower the chunk further: `CHUNK=9 ./4-upscale.sh clip.mp4` (or 5).
+- Quick end-to-end test on a few seconds first: `LOADCAP=150 ./4-upscale.sh clip.mp4` (RAM stays bounded by `CHUNK` regardless).
 - Give WSL2 a swap cushion (and don't disable it). In `C:\Users\<you>\.wslconfig`:
   ```ini
   [wsl2]
@@ -79,6 +79,8 @@ This is **system RAM**, not VRAM (a VRAM OOM raises a Python `torch.OutOfMemoryE
   swap=32GB
   ```
   then `wsl --shutdown` in PowerShell and reopen. (Confirm the ceiling with `free -h` — `total` is WSL2's RAM cap, `Swap` should not be `0B`.)
+- **Long videos (tens of minutes):** chunked RAM can still creep up over a very long run (SeedVR2 issue #445), made worse by `--cache_dit`/`--cache_vae` — this repo doesn't enable those. Watch `watch -n2 free -h`; if RAM climbs steadily, split the clip with ffmpeg and process the parts.
+- **AMD-specific, long VAE-encode runs:** a HIP allocator crash (`hipErrorFileNotFound`) near the end of long encodes has been reported on ROCm 7.2 (issue #531). Unrelated to RAM; if you hit it on a long clip, process in shorter segments.
 
 ## Upscale OOMs (out of VRAM)
 
