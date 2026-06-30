@@ -1,0 +1,16 @@
+# Pulled by the scripts, never committed (keeps the repo KB-sized):
+.venv/
+ComfyUI/
+output/
+models/
+input/
+
+# Downloaded artifacts:
+*.deb
+*.whl
+*.safetensors
+
+# Editor / OS noise:
+__pycache__/
+*.pyc
+.DS_Store
