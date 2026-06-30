@@ -42,10 +42,11 @@ GPU not visible to ROCm.
 
 ## `rocminfo` does not list gfx1101
 
-AMD is migrating the WSL install to **ROCDXG / librocdxg** and the latest docs are incomplete (AMD docs bug **ROCm#6296**). The legacy `amdgpu-install --usecase=wsl,rocm --no-dkms` (what `1-install-rocm.sh` runs) may be incomplete on the newest stack.
+`1-install-rocm.sh` installs ROCm (`--usecase=rocm --no-dkms`) **and** `librocdxg` (the ROCm 7.1+ WSL→Windows-GPU bridge that replaced the old `wsl` usecase; AMD docs for this are incomplete, bug **ROCm#6296**). If `rocminfo` still shows no gfx1101 after that:
 
-- Install **librocdxg** per <https://github.com/ROCm/librocdxg> (provides the DXG runtime), then re-run `./1-install-rocm.sh`.
-- Re-confirm Adrenalin 26.2.2+ on the host.
+- **Most common:** group membership isn't active yet. In Windows PowerShell run `wsl --shutdown`, reopen the distro, and re-run `./1-install-rocm.sh`. (`render`/`video` group needs a fresh login.)
+- Confirm **Adrenalin 26.2.2+** on the Windows host.
+- Check the librocdxg `dpkg -i` didn't error (scroll up in the install output). Manual install: grab `rocdxg-roct_<ver>_amd64.deb` from <https://github.com/ROCm/librocdxg/releases> and `sudo dpkg -i` it.
 
 ## Smoke test FAIL: `torch is NOT a ROCm build`
 

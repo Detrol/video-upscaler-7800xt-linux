@@ -77,11 +77,26 @@ fi
 
 # --- ROCm runtime ---
 if [ "$IS_WSL" = 1 ]; then
-  # WSL: install the full ROCm userspace WITHOUT the kernel module (the Windows host
-  # driver owns the GPU via /dev/dxg). The old 'wsl' usecase was removed in current
-  # amdgpu-install; 'rocm' is the valid one (confirmed via --list-usecase). If the GPU is
-  # still not detected afterwards, install librocdxg -- see the note printed below.
+  # WSL: full ROCm userspace WITHOUT the kernel module (the Windows host driver owns the
+  # GPU via /dev/dxg). 'rocm' is the valid usecase -- the old 'wsl' usecase was removed
+  # (confirmed via 'amdgpu-install --list-usecase').
   sudo amdgpu-install -y --usecase=rocm --no-dkms
+  sudo usermod -a -G render,video "$LOGNAME" || true
+
+  # WSL REQUIRES librocdxg: the ROCm 7.1+ bridge that lets the ROCm runtime reach the
+  # Windows GPU via /dev/dxg. It REPLACED the old 'wsl' usecase. Without it rocminfo
+  # won't list the card and torch.cuda.is_available() is False. (HSA_ENABLE_DXG_DETECTION=1,
+  # exported above, switches it on -- needed until ROCm 7.13.) Fetch the newest release .deb;
+  # fall back to a pinned version if the GitHub release API is unreachable.
+  echo "[*] Installing librocdxg (WSL GPU bridge) ..."
+  DXG_URL="$(wget -qO- https://api.github.com/repos/ROCm/librocdxg/releases 2>/dev/null \
+    | grep -oE 'https://[^"]*/rocdxg-roct_[^"]*_amd64\.deb' | head -1 || true)"
+  if [ -z "$DXG_URL" ]; then
+    DXG_URL="https://github.com/ROCm/librocdxg/releases/download/v1.2.1/rocdxg-roct_1.2.1_amd64.deb"
+    echo "[*] (release API unavailable; using pinned $DXG_URL)"
+  fi
+  wget -nc "$DXG_URL"
+  sudo dpkg -i "$(basename "$DXG_URL")" || sudo apt-get install -f -y
 else
   sudo amdgpu-install -y --usecase=graphics,rocm
   sudo usermod -a -G render,video "$LOGNAME" || true
@@ -93,12 +108,12 @@ if command -v rocminfo >/dev/null 2>&1 && rocminfo 2>/dev/null | grep -qi gfx110
   echo "[*] rocminfo sees gfx1101."
 else
   cat <<'EOF'
-[!] rocminfo did NOT report gfx1101 yet.
-    AMD is mid-migrating the WSL install to "ROCDXG / librocdxg" (open docs bug ROCm#6296),
-    so the legacy usecase above can be incomplete on the very latest stack.
-    Fallback: install librocdxg per https://github.com/ROCm/librocdxg (provides the DXG
-    runtime), then re-run this script. Native users: reboot first, then re-check rocminfo.
-    (You can still continue to the PyTorch step below and let the smoke test be the judge.)
+[!] rocminfo did NOT report gfx1101 yet. Most likely:
+    - Group membership not active -> run 'wsl --shutdown' in Windows PowerShell, reopen
+      this distro, and re-run this script (render/video group needs a fresh login).
+    - Adrenalin 26.2.2+ not installed on the Windows host.
+    - librocdxg failed to install above (scroll up for dpkg errors). See TROUBLESHOOTING.md.
+    (You can still continue to the PyTorch step below; the smoke test is the real judge.)
 EOF
 fi
 
