@@ -22,9 +22,15 @@ source ./env.sh
 
 # SeedVR2 runs the WHOLE pipeline at the target resolution (it downscales the source to
 # RES first, then restores upward). RES therefore drives VRAM, not the source size.
-RES="${RES:-1080}"      # 1080 safe on 16GB; 1440 testable. OOM -> see TROUBLESHOOTING.md.
-BATCH="${BATCH:-5}"     # MUST be 4n+1 (1,5,9,13,17,...). OOM -> drop to 1.
+RES="${RES:-1080}"      # 1080 safe on 16GB VRAM; 1440 testable. VRAM OOM -> see TROUBLESHOOTING.md.
+BATCH="${BATCH:-5}"     # MUST be 4n+1 (1,5,9,13,17,...). VRAM OOM -> drop to 1.
 MODEL="${MODEL:-seedvr2_ema_3b_fp16.safetensors}"
+# Streaming chunk = frames held in SYSTEM RAM at once. The CLI default (0) loads the WHOLE
+# clip into RAM and OOM-kills on a 16 GB-RAM box. Keep >0 to stream memory-bounded.
+# Raise for fewer seams/more speed if you have RAM; lower if it still OOMs.
+CHUNK="${CHUNK:-100}"
+# Quick test: cap TOTAL frames loaded (0 = whole clip). e.g. LOADCAP=150 -> ~first 5 s.
+LOADCAP="${LOADCAP:-0}"
 
 # Resolve inputs to absolute paths NOW, while cwd is still the repo root.
 # (After 'cd ComfyUI' a relative arg would resolve against ComfyUI/ and be missed.)
@@ -48,11 +54,14 @@ NODE="custom_nodes/seedvr2_videoupscaler"
 fail=0
 for abs in "${abs_files[@]}"; do
   base="$(basename "${abs%.*}")"
-  echo "=== Upscaling $base  ($MODEL, ${RES}p, batch $BATCH) ==="
+  echo "=== Upscaling $base  ($MODEL, ${RES}p, batch $BATCH, chunk $CHUNK, load_cap $LOADCAP) ==="
   if ! python3 "$NODE/inference_cli.py" "$abs" \
       --dit_model "$MODEL" \
       --resolution "$RES" \
       --batch_size "$BATCH" \
+      --chunk_size "$CHUNK" \
+      --temporal_overlap 3 \
+      --load_cap "$LOADCAP" \
       --attention_mode sdpa \
       --output "../output/${base}_${RES}p.mp4"; then
     echo "[!] FAILED: $base (continuing to next file)"

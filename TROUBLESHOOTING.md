@@ -66,6 +66,20 @@ This is the Windows failure reproducing on Linux. Before giving up:
 - Cross-check on **native Ubuntu** (see below) — its gfx1101 support is more clearly documented than WSL's.
 - Note: SeedVR2 uses `--attention_mode sdpa`, which falls back to math attention on gfx1101 (flash/mem-efficient kernels are not auto-enabled here — PyTorch #159226). Correctness is fine; it's just not the fastest path.
 
+## Upscale prints "Terminated" / "Killed" mid-run (system RAM OOM)
+
+This is **system RAM**, not VRAM (a VRAM OOM raises a Python `torch.OutOfMemoryError` traceback instead). The SeedVR2 CLI loads the **whole video into RAM** when `--chunk_size 0` (its default), which OOM-kills on a 16 GB-RAM box. `4-upscale.sh` now defaults to `CHUNK=100` (streaming, memory-bounded) to prevent this.
+
+- Still killed? Lower the chunk: `CHUNK=50 ./4-upscale.sh clip.mp4` (or 25).
+- Quick end-to-end test on a few seconds first: `LOADCAP=150 ./4-upscale.sh clip.mp4`.
+- Give WSL2 a swap cushion (and don't disable it). In `C:\Users\<you>\.wslconfig`:
+  ```ini
+  [wsl2]
+  memory=14GB
+  swap=32GB
+  ```
+  then `wsl --shutdown` in PowerShell and reopen. (Confirm the ceiling with `free -h` — `total` is WSL2's RAM cap, `Swap` should not be `0B`.)
+
 ## Upscale OOMs (out of VRAM)
 
 `4-upscale.sh` honors env overrides. Lower in this order:
