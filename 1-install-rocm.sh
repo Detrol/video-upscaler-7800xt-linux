@@ -77,9 +77,11 @@ fi
 
 # --- ROCm runtime ---
 if [ "$IS_WSL" = 1 ]; then
-  # Legacy single-command WSL flow (exact, repo.radeon.com). If the GPU is not detected
-  # afterwards, AMD's newer ROCDXG path is the fallback -- see the note printed below.
-  sudo amdgpu-install -y --usecase=wsl,rocm --no-dkms
+  # WSL: install the full ROCm userspace WITHOUT the kernel module (the Windows host
+  # driver owns the GPU via /dev/dxg). The old 'wsl' usecase was removed in current
+  # amdgpu-install; 'rocm' is the valid one (confirmed via --list-usecase). If the GPU is
+  # still not detected afterwards, install librocdxg -- see the note printed below.
+  sudo amdgpu-install -y --usecase=rocm --no-dkms
 else
   sudo amdgpu-install -y --usecase=graphics,rocm
   sudo usermod -a -G render,video "$LOGNAME" || true
