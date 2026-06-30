@@ -2,6 +2,18 @@
 
 The `2-smoke-test.py` line that failed tells you which section applies.
 
+## `1-install-rocm.sh` says "Ubuntu '<name>' is not supported"
+
+ROCm 7.2.1 only supports Ubuntu **24.04 (noble)** and **22.04 (jammy)**. `wsl --install` now defaults to the newest LTS (e.g. 26.04 "resolute"), which is too new for the gfx1101-verified ROCm version.
+
+Best fix — add a 24.04 distro (WSL runs several side by side, the Adrenalin host driver is shared):
+
+```powershell
+wsl --install -d Ubuntu-24.04
+```
+
+then clone + run the repo inside Ubuntu-24.04. Quick unsupported attempt on your current distro: `FORCE_UBUNTU=noble ./1-install-rocm.sh` (may fail on glibc/dependency mismatches against a newer Ubuntu).
+
 ## Smoke test FAIL: `import torch -> ...` (exit 2)
 
 The ROCm wheel won't import — usually a missing runtime lib on bare WSL2 (AMD ROCm issue **#6053**, `libroctx64.so.4`).

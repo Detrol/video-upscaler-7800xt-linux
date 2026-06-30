@@ -25,12 +25,28 @@ fi
 # --- Ubuntu codename ---
 # shellcheck disable=SC1091
 . /etc/os-release
-case "${VERSION_CODENAME:-}" in
-  noble) UB=noble ;;   # 24.04
-  jammy) UB=jammy ;;   # 22.04
-  *) echo "[!] Unsupported Ubuntu '${VERSION_CODENAME:-?}'. Use 24.04 (noble) or 22.04 (jammy)."; exit 1 ;;
+UB=""
+case "${FORCE_UBUNTU:-${VERSION_CODENAME:-}}" in
+  noble) UB=noble ;;   # 24.04 LTS
+  jammy) UB=jammy ;;   # 22.04 LTS
 esac
-echo "[*] Ubuntu ${VERSION_ID:-?} ($UB)."
+if [ -z "$UB" ]; then
+  cat <<EOF
+[!] Ubuntu '${VERSION_CODENAME:-?}' (${VERSION_ID:-?}) is not supported by ROCm 7.2.1.
+    AMD validates only Ubuntu 24.04 (noble) and 22.04 (jammy) for the RX 7800 XT.
+    'wsl --install' defaults to the newest LTS, which can be too new.
+
+    BEST FIX -- install a 24.04 WSL distro alongside this one (they coexist):
+        (Windows PowerShell)  wsl --install -d Ubuntu-24.04
+    then clone + run this repo inside Ubuntu-24.04.
+
+    Advanced/unsupported -- try the 24.04 packages on THIS distro:
+        FORCE_UBUNTU=noble ./1-install-rocm.sh
+    (may hit glibc/dependency issues on a newer Ubuntu).
+EOF
+  exit 1
+fi
+echo "[*] Ubuntu ${VERSION_ID:-?} -> using '$UB' ROCm packages."
 
 # --- Python 3.12 (ROCm wheels are cp312-only) ---
 if ! python3 --version 2>&1 | grep -q "3\.12"; then
