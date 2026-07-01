@@ -56,8 +56,10 @@ fi
 # per-tile latent accumulator in SYSTEM RAM. Every encoded/decoded tile is then copied GPU->CPU -- a
 # blocking D2H that, over WSL2's dxg boundary, dominated wall time: profiling showed the tile copy at
 # ~100% of VAE time (encode compute 0.2 s vs 136 s of copies) with the GPU 95% idle. The accumulator
-# is a small latent (~MBs), so keep it on the GPU. Fixes both encode and decode. Fallback: cpu.
-TENSOROFFLOAD="${TENSOROFFLOAD:-cuda}"
+# is a small latent (~MBs), so keep it on the GPU. NOTE: the node's _normalize_device prepends
+# 'cuda:' to this value, so pass a device INDEX (0 -> cuda:0); 'cuda' becomes the invalid 'cuda:cuda'.
+# Fixes both encode and decode. Fallback on accumulator VRAM OOM: TENSOROFFLOAD=cpu.
+TENSOROFFLOAD="${TENSOROFFLOAD:-0}"
 
 # Resolve inputs to absolute paths NOW, while cwd is still the repo root.
 # (After 'cd ComfyUI' a relative arg would resolve against ComfyUI/ and be missed.)
