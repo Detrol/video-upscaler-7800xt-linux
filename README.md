@@ -49,7 +49,8 @@ The smoke test runs the two ops that crashed on Windows (`scaled_dot_product_att
 |---|---|
 | `1-install-rocm.sh` | ROCm 7.2.1 + Python venv + ROCm PyTorch (WSL2). |
 | `2-smoke-test.py` | **Gate.** torch import + gfx1101 + SDPA attention + Conv3d on GPU. |
-| `3-bootstrap.sh` | ComfyUI + SeedVR2 node + model download (torch-clobber guarded). |
-| `4-upscale.sh` | Run wrapper. `RES`/`BATCH`/`MODEL` overridable via env. |
+| `3-bootstrap.sh` | ComfyUI + SeedVR2 node + model download (torch-clobber guarded); auto-runs `fix-cudnn.sh`. |
+| `fix-cudnn.sh` | Re-enables cuDNN/MIOpen for RDNA3 (ComfyUI disables it for all AMD → ~10x slower VAE). |
+| `4-upscale.sh` | Run wrapper. `RES`/`BATCH`/`MODEL`/`CHUNK`/`VAETILE`/`FAST` overridable via env. |
 | `env.sh` | Verified ROCm env vars; sourced by the scripts. |
 | `TROUBLESHOOTING.md` | Smoke-test failures, Docker fallback, OOM knobs, native Ubuntu, known bugs. |

@@ -95,21 +95,20 @@ WSL2 uses the Windows GPU driver, so Windows' Timeout Detection & Recovery (TDR)
   then **reboot Windows**. (Undo: `reg delete "...GraphicsDrivers" /v TdrDelay /f` + same for `TdrDdiDelay`, reboot.)
 - If tiling isn't enough on its own, also drop `BATCH=1` to shorten each forward pass.
 
-## Upscaling is extremely slow (minutes per batch)
+## Upscaling is extremely slow (minutes per batch, GPU mostly idle)
 
-By default, attention on gfx1101 uses the **math** fallback (you'll see "Mem Efficient attention ... is still experimental" warnings) — very slow at these resolutions.
+**Main cause — ComfyUI disables cuDNN/MIOpen for AMD.** ComfyUI (PR #10302, v0.3.65+) sets `torch.backends.cudnn.enabled = False` for *all* AMD GPUs as an RDNA4 workaround. On RDNA3 (gfx1101) this makes the VAE Conv3d run an unoptimized fallback **every batch** — ~10x slower and ~10x more VRAM (ComfyUI#10460). Tell-tale: GPU sits near 0% while CPU works, for minutes per batch.
 
-- **Enable the fast AOTriton kernels** (built for gfx1101 on Linux, unlike Windows). Validate, then run with `FAST=1`:
-  ```bash
-  FAST=1 python3 2-smoke-test.py                # must say ALL PASS
-  FAST=1 LOADCAP=25 ./4-upscale.sh clip.mp4     # short test -- then eyeball output/ looks right
-  ```
-  Output correct? Drop `LOADCAP` and run the full clip with `FAST=1`.
-- **TunableOp overhead:** the first run tunes GEMM kernels per shape, which for a one-off upscale may not pay off. Try disabling it:
-  ```bash
-  FAST=1 PYTORCH_TUNABLEOP_ENABLED=0 LOADCAP=25 ./4-upscale.sh clip.mp4
-  ```
-- The CLI's "optimizations check" line lists **SageAttention / FlashAttention / Triton**. SageAttention and FlashAttention are **CUDA-only** — not available on AMD; ignore them.
+`3-bootstrap.sh` now auto-runs `fix-cudnn.sh` to re-enable it. Installed before this fix? Run it once, then re-run the upscale:
+```bash
+./fix-cudnn.sh
+FAST=1 LOADCAP=25 ./4-upscale.sh clip.mp4     # short test -- then eyeball output/ looks right
+```
+
+**Secondary levers (much smaller — don't expect them to fix VAE time):**
+- **`FAST=1`** enables the AOTriton attention kernels, but those only touch the **DiT transformer, not the VAE**, so they won't fix VAE-encode time. Keep it on; it's harmless (verify no "Flash attention was not compiled for gfx1101" warning — if it appears, the flag is a no-op and SDPA runs in math mode, which is fine).
+- **TunableOp** GEMM tuning is seconds-scale, not the bottleneck; leave it on.
+- SageAttention / FlashAttention in the CLI's "optimizations check" are **CUDA-only** — ignore on AMD.
 
 ## Upscale OOMs (out of VRAM)
 

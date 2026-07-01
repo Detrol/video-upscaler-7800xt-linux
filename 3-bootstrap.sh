@@ -64,6 +64,9 @@ hf download numz/SeedVR2_comfyUI \
   seedvr2_ema_3b_fp16.safetensors ema_vae_fp16.safetensors \
   --local-dir models/SEEDVR2
 
+# Re-enable cuDNN/MIOpen for RDNA3 (ComfyUI disables it for all AMD -> ~10x slower VAE here).
+bash "$here/fix-cudnn.sh"
+
 echo
 echo "== Bootstrap done. Upscale a clip: =="
 echo "   ./4-upscale.sh /path/to/clip.mp4"
