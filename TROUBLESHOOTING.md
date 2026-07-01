@@ -95,6 +95,22 @@ WSL2 uses the Windows GPU driver, so Windows' Timeout Detection & Recovery (TDR)
   then **reboot Windows**. (Undo: `reg delete "...GraphicsDrivers" /v TdrDelay /f` + same for `TdrDdiDelay`, reboot.)
 - If tiling isn't enough on its own, also drop `BATCH=1` to shorten each forward pass.
 
+## Upscaling is extremely slow (minutes per batch)
+
+By default, attention on gfx1101 uses the **math** fallback (you'll see "Mem Efficient attention ... is still experimental" warnings) — very slow at these resolutions.
+
+- **Enable the fast AOTriton kernels** (built for gfx1101 on Linux, unlike Windows). Validate, then run with `FAST=1`:
+  ```bash
+  FAST=1 python3 2-smoke-test.py                # must say ALL PASS
+  FAST=1 LOADCAP=25 ./4-upscale.sh clip.mp4     # short test -- then eyeball output/ looks right
+  ```
+  Output correct? Drop `LOADCAP` and run the full clip with `FAST=1`.
+- **TunableOp overhead:** the first run tunes GEMM kernels per shape, which for a one-off upscale may not pay off. Try disabling it:
+  ```bash
+  FAST=1 PYTORCH_TUNABLEOP_ENABLED=0 LOADCAP=25 ./4-upscale.sh clip.mp4
+  ```
+- The CLI's "optimizations check" line lists **SageAttention / FlashAttention / Triton**. SageAttention and FlashAttention are **CUDA-only** — not available on AMD; ignore them.
+
 ## Upscale OOMs (out of VRAM)
 
 `4-upscale.sh` honors env overrides. Lower in this order:

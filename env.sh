@@ -15,12 +15,13 @@ export HSA_ENABLE_DXG_DETECTION=1
 unset HSA_OVERRIDE_GFX_VERSION 2>/dev/null || true
 
 # --- Performance / stability (optional; safe) ---
-# TunableOp benchmarks GEMM kernel choices for your tensor shapes (RDNA3 heuristics are
-# immature). First run is slower while it tunes, then faster.
-export PYTORCH_TUNABLEOP_ENABLED=1
-# MIOpen FAST conv-kernel find = quicker ComfyUI startup. Unset for a final batch run if you
-# want MIOpen to search for peak conv performance.
-export MIOPEN_FIND_MODE=2
+# TunableOp benchmarks GEMM kernel choices for your tensor shapes. It pays off for REPEATED
+# identical workloads, but for a one-off upscale (many distinct tile shapes) the first-run
+# tuning overhead may not amortize -- try PYTORCH_TUNABLEOP_ENABLED=0 if a run feels slow.
+# Overridable: set the var before calling and this default won't clobber it.
+export PYTORCH_TUNABLEOP_ENABLED="${PYTORCH_TUNABLEOP_ENABLED:-1}"
+# MIOpen FAST conv-kernel find = quicker startup. Overridable.
+export MIOPEN_FIND_MODE="${MIOPEN_FIND_MODE:-2}"
 
 # --- Intentionally NOT enabled (documented so you know why) ---
 # FLASH_ATTENTION_TRITON_AMD_ENABLE=TRUE   -> only if you BUILD the ROCm flash-attn Triton fork.

@@ -20,6 +20,15 @@ fi
 # shellcheck disable=SC1091
 source ./env.sh
 
+# FAST=1 enables the AOTriton flash/mem-efficient attention kernels. On Linux these ARE built
+# for gfx1101 (unlike Windows, where the same flag crashes) and are FAR faster than the default
+# math attention. Experimental -> VALIDATE FIRST: `FAST=1 python3 2-smoke-test.py` must say
+# ALL PASS, then eyeball a short clip's output. Default off = slow but known-correct.
+if [ "${FAST:-0}" = 1 ]; then
+  export TORCH_ROCM_AOTRITON_ENABLE_EXPERIMENTAL=1
+  echo "[*] FAST attention ON (AOTriton experimental) -- verify output looks correct."
+fi
+
 # SeedVR2 runs the WHOLE pipeline at the target resolution (it downscales the source to
 # RES first, then restores upward). RES therefore drives VRAM, not the source size.
 RES="${RES:-1080}"      # 1080 safe on 16GB VRAM; 1440 testable. VRAM OOM -> see TROUBLESHOOTING.md.
