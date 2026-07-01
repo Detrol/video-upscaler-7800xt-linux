@@ -52,6 +52,12 @@ TILEARGS=()
 if [ "$VAETILE" -gt 0 ]; then
   TILEARGS=(--vae_encode_tiled --vae_encode_tile_size "$VAETILE" --vae_decode_tiled --vae_decode_tile_size "$VAETILE")
 fi
+# VAE tile-accumulator device. SeedVR2 defaults --tensor_offload_device to 'cpu', which allocates the
+# per-tile latent accumulator in SYSTEM RAM. Every encoded/decoded tile is then copied GPU->CPU -- a
+# blocking D2H that, over WSL2's dxg boundary, dominated wall time: profiling showed the tile copy at
+# ~100% of VAE time (encode compute 0.2 s vs 136 s of copies) with the GPU 95% idle. The accumulator
+# is a small latent (~MBs), so keep it on the GPU. Fixes both encode and decode. Fallback: cpu.
+TENSOROFFLOAD="${TENSOROFFLOAD:-cuda}"
 
 # Resolve inputs to absolute paths NOW, while cwd is still the repo root.
 # (After 'cd ComfyUI' a relative arg would resolve against ComfyUI/ and be missed.)
@@ -75,7 +81,7 @@ NODE="custom_nodes/seedvr2_videoupscaler"
 fail=0
 for abs in "${abs_files[@]}"; do
   base="$(basename "${abs%.*}")"
-  echo "=== Upscaling $base  ($MODEL, ${RES}p, batch $BATCH, chunk $CHUNK, tile $VAETILE) ==="
+  echo "=== Upscaling $base  ($MODEL, ${RES}p, batch $BATCH, chunk $CHUNK, tile $VAETILE, offload $TENSOROFFLOAD) ==="
   if ! python3 "$NODE/inference_cli.py" "$abs" \
       --dit_model "$MODEL" \
       --resolution "$RES" \
@@ -84,6 +90,7 @@ for abs in "${abs_files[@]}"; do
       --temporal_overlap "$OVERLAP" \
       --load_cap "$LOADCAP" \
       "${TILEARGS[@]}" \
+      --tensor_offload_device "$TENSOROFFLOAD" \
       --attention_mode sdpa \
       --output "../output/${base}_${RES}p.mp4"; then
     echo "[!] FAILED: $base (continuing to next file)"
