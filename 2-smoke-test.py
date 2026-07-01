@@ -28,9 +28,14 @@ fails = 0
 try:
     import torch
     ok(f"import torch {torch.__version__}")
+except ModuleNotFoundError as e:
+    bad(f"import torch -> {e}")
+    print("\nHINT: torch isn't in this Python -- activate the venv first:")
+    print("      source .venv/bin/activate")
+    sys.exit(2)
 except Exception as e:
     bad(f"import torch -> {e}")
-    print("\nHINT: the ROCm torch wheel failed to import (see AMD ROCm issue #6053).")
+    print("\nHINT: the ROCm torch wheel is present but failed to LOAD (see AMD ROCm issue #6053).")
     print("      Use the ROCm Docker container fallback in TROUBLESHOOTING.md.")
     sys.exit(2)
 
