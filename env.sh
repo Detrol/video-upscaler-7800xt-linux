@@ -29,4 +29,4 @@ export MIOPEN_FIND_MODE="${MIOPEN_FIND_MODE:-2}"
 # TORCH_ROCM_AOTRITON_ENABLE_EXPERIMENTAL=1-> community flag, only ever reported working on
 #                                             gfx1100, NEVER confirmed on gfx1101. Untested; leave off.
 
-echo "[env.sh] HSA_ENABLE_DXG_DETECTION=1, TunableOp on, MIOpen FAST. HSA_OVERRIDE_GFX_VERSION unset (correct for gfx1101)."
+echo "[env.sh] DXG on. TunableOp=$PYTORCH_TUNABLEOP_ENABLED, MIOpen find=$MIOPEN_FIND_MODE. HSA_OVERRIDE_GFX_VERSION unset (correct for gfx1101)."
