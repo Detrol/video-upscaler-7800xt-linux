@@ -35,6 +35,14 @@ OVERLAP="${OVERLAP:-2}"
 # Quick test: cap TOTAL frames processed (0 = whole clip). e.g. LOADCAP=150 -> ~first 5 s.
 # (RAM stays bounded by CHUNK regardless; LOADCAP just shortens the job.)
 LOADCAP="${LOADCAP:-0}"
+# VAE tiling: splits VAE encode/decode into smaller tiles so each GPU kernel is short enough
+# to avoid the Windows/WSL2 driver timeout (TDR) that resets the GPU on long (>2 s) kernels.
+# 512 is safe; drop to 256 if a "driver timeout" still occurs. 0 disables tiling.
+VAETILE="${VAETILE:-512}"
+TILEARGS=()
+if [ "$VAETILE" -gt 0 ]; then
+  TILEARGS=(--vae_encode_tiled --vae_encode_tile_size "$VAETILE" --vae_decode_tiled --vae_decode_tile_size "$VAETILE")
+fi
 
 # Resolve inputs to absolute paths NOW, while cwd is still the repo root.
 # (After 'cd ComfyUI' a relative arg would resolve against ComfyUI/ and be missed.)
@@ -58,7 +66,7 @@ NODE="custom_nodes/seedvr2_videoupscaler"
 fail=0
 for abs in "${abs_files[@]}"; do
   base="$(basename "${abs%.*}")"
-  echo "=== Upscaling $base  ($MODEL, ${RES}p, batch $BATCH, chunk $CHUNK, load_cap $LOADCAP) ==="
+  echo "=== Upscaling $base  ($MODEL, ${RES}p, batch $BATCH, chunk $CHUNK, tile $VAETILE) ==="
   if ! python3 "$NODE/inference_cli.py" "$abs" \
       --dit_model "$MODEL" \
       --resolution "$RES" \
@@ -66,6 +74,7 @@ for abs in "${abs_files[@]}"; do
       --chunk_size "$CHUNK" \
       --temporal_overlap "$OVERLAP" \
       --load_cap "$LOADCAP" \
+      "${TILEARGS[@]}" \
       --attention_mode sdpa \
       --output "../output/${base}_${RES}p.mp4"; then
     echo "[!] FAILED: $base (continuing to next file)"

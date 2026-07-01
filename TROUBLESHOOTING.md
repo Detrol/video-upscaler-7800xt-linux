@@ -82,6 +82,19 @@ This is **system RAM**, not VRAM (a VRAM OOM raises a Python `torch.OutOfMemoryE
 - **Long videos (tens of minutes):** chunked RAM can still creep up over a very long run (SeedVR2 issue #445), made worse by `--cache_dit`/`--cache_vae` — this repo doesn't enable those. Watch `watch -n2 free -h`; if RAM climbs steadily, split the clip with ffmpeg and process the parts.
 - **AMD-specific, long VAE-encode runs:** a HIP allocator crash (`hipErrorFileNotFound`) near the end of long encodes has been reported on ROCm 7.2 (issue #531). Unrelated to RAM; if you hit it on a long clip, process in shorter segments.
 
+## "AMD Software detected a driver timeout" / GPU resets mid-run (TDR)
+
+WSL2 uses the Windows GPU driver, so Windows' Timeout Detection & Recovery (TDR) applies: a GPU kernel running longer than ~2 s makes Windows reset the driver and kill the run. The VAE encode/decode at ~1080p is the usual trigger.
+
+- **Primary fix (no reboot):** VAE tiling — on by default in `4-upscale.sh` (`VAETILE=512`), which keeps each kernel short. Still timing out? Smaller tiles: `VAETILE=256 ./4-upscale.sh clip.mp4`.
+- **More headroom for long kernels (needs reboot):** raise TdrDelay on the Windows host. In an **admin** PowerShell:
+  ```powershell
+  reg add "HKLM\SYSTEM\CurrentControlSet\Control\GraphicsDrivers" /v TdrDelay /t REG_DWORD /d 60 /f
+  reg add "HKLM\SYSTEM\CurrentControlSet\Control\GraphicsDrivers" /v TdrDdiDelay /t REG_DWORD /d 60 /f
+  ```
+  then **reboot Windows**. (Undo: `reg delete "...GraphicsDrivers" /v TdrDelay /f` + same for `TdrDdiDelay`, reboot.)
+- If tiling isn't enough on its own, also drop `BATCH=1` to shorten each forward pass.
+
 ## Upscale OOMs (out of VRAM)
 
 `4-upscale.sh` honors env overrides. Lower in this order:
