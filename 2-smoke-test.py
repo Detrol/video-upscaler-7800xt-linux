@@ -11,7 +11,13 @@ Usage:
 Exit 0  -> all checks PASS, safe to run ./3-bootstrap.sh
 Exit !=0 -> a check FAILED; see the FAIL line and TROUBLESHOOTING.md
 """
+import os
 import sys
+
+# FAST=1 -> enable the experimental AOTriton flash/mem-efficient attention kernels (the same
+# toggle 4-upscale.sh uses). Must be set BEFORE torch is imported below, or torch ignores it.
+if os.environ.get("FAST") == "1":
+    os.environ.setdefault("TORCH_ROCM_AOTRITON_ENABLE_EXPERIMENTAL", "1")
 
 
 def ok(msg):
